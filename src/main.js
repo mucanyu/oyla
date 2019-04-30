@@ -6,26 +6,33 @@ import VueRouter from 'vue-router'
 import Buefy from "buefy";
 import "@fortawesome/fontawesome-free/css/all.css";
 import "@fortawesome/fontawesome-free/css/fontawesome.css";
+// import swal from 'sweetalert' // https://github.com/t4t5/sweetalert
+import VueSwal from 'vue-swal'
 
 import 'buefy/dist/buefy.css'
 
 import config from 'buefy/src/utils/config'
 config.defaultIconPack = 'fas';
 
-// import ElementUI from 'element-ui';
-// import 'element-ui/lib/theme-chalk/index.css';
-
 import Welcome from './components/Welcome'
 import Create from './components/Create'
+import { format } from 'date-fns'
 
 Vue.config.productionTip = false
 Vue.use(VueRouter)
+Vue.use(VueSwal)
 Vue.use(Buefy, {
-  defaultIconPack: "fas"
+  defaultIconPack: "fas",
+  defaultDateFormatter: date => {
+    return format(date, 'D/M/YYYY');
+  },
+  defaultDateParser: date => {
+    console.log("Default date parser işlendi:", date)
+    return date;
+  }
 });
-// Vue.use(ElementUI);
 
-//define your routes
+//define routes
 const routes = [
   { path: '/', component: Welcome },
   { path: '/create', component: Create}
