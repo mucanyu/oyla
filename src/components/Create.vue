@@ -1,5 +1,5 @@
 <template>
-	<div class="">
+	<div>
 		<section class="is-fullheight is-turquoise" style="min-height:100vh;">
 			<!-- Navbar -->
 			<Navbar isLogoActive="none" />
@@ -36,15 +36,21 @@
 								</b-field>
 							</div>
 
-							<div class="columns is-mobile is-multiline">
-								<div class="column is-6">
-									<div class="buttons" style="justify-content: center;">
+							<div class="columns">
+								<div class="column is-3">
+									<div class="buttons" style="margin-top:5px;"> <!-- style="justify-content: center;" -->
 										<b-button v-on:click="addCandidate()" type="is-warning" rounded>
 											<b-icon pack="fas" icon="plus" size="is-small" />
 											<!-- <span>Add Candidate</span> -->
 										</b-button>
-									</div>
+									</div>									
 								</div>
+								<div class="column is-3">
+										<b-field label="Voter Count">
+											<b-input type="text" value="" maxlength="30" icon-pack="fas" icon="cubes">
+											</b-input>
+										</b-field>
+									</div>
 							</div>
 
 							<!-- TODO: -->
@@ -206,10 +212,28 @@
 			getYesterdayTime() {
 				return new Date(Date.now() - 86400000);
 			},
+			generateRandomString(length) {
+				return Math.round((Math.pow(36, length + 1) - Math.random() * Math.pow(36, length))).toString(36).slice(1);
+			},
+			pushNewElectionRoute(path) {
+				console.log("Path:" + path);
+				this.$router.push({ path: `results/${path}`, components: Navbar });
+			},
 			start() {
 				this.$swal({
 					title: 'Successfully created an election',
 					icon: "success",
+				})
+				.then(() => {
+						this.pushNewElectionRoute(this.generateRandomString(10));
+					}
+				)
+				.catch(err => {
+					this.$swal({
+						title: 'Oops! An error occured',
+						text: `Error info: ${err}`,
+						icon: "error",
+					});
 				});
 			}
 		},
