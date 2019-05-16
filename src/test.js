@@ -11,8 +11,8 @@ const moment = require('moment');
 if (typeof web3 !== 'undefined') {
 	web3 = new Web3(web3.currentProvider);
 } else {
-	web3 = new Web3(new Web3.providers.HttpProvider("https://ropsten.infura.io/v3/1d6a7f1c8bed4cec8f6f05d0f83f481e"));
-	// web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"));
+	// web3 = new Web3(new Web3.providers.HttpProvider("https://ropsten.infura.io/v3/1d6a7f1c8bed4cec8f6f05d0f83f481e"));
+	web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"));
 }
 
 /* TODO: GETTING VALUE FROM CONTRACT */
@@ -30,30 +30,26 @@ if (typeof web3 !== 'undefined') {
 // 	.catch(error => console.log('XXX An error occured! --> ' + error));
 // FIXME:
 
-moment.locale('en-gb');
-console.log('Tarih: ' + moment("12-25-1995 17:50", "MM-DD-YYYY HH:mm").unix());
-console.log('Tarih2: ' + moment('1557422695', 'X').format('LLLL'));
-
 let DenemelerABI = DenemelerContract.abi;
 
-web3.eth.getAccounts((error, accounts) => {
-	if (error) {
-		console.log('Cant get accounts.');
-	} else {
-		console.log("ACCOUNTS >", accounts);		
-	}
-});
+// web3.eth.getAccounts((error, accounts) => {
+// 	if (error) {
+// 		console.log('Cant get accounts.');
+// 	} else {
+// 		console.log("ACCOUNTS >", accounts);		
+// 	}
+// });
 
-let testAcc = web3.eth.accounts.create(web3.utils.randomHex(32));
-console.log('Account details --->', testAcc.privateKey, '\n');
+// let testAcc = web3.eth.accounts.create(web3.utils.randomHex(32));
+// console.log('Account details --->', testAcc.privateKey, '\n');
 
-// // Parameters ---> web3.eth.Contract(jsonInterface, address (optional), options (optional))
-let denemelerContract = new web3.eth.Contract(DenemelerABI, '0x6986F0d1e491De5Cfa94B9c7B8ADdA1f03c13fc0');
+// // // Parameters ---> web3.eth.Contract(jsonInterface, address (optional), options (optional))
+// let denemelerContract = new web3.eth.Contract(DenemelerABI, '0x6986F0d1e491De5Cfa94B9c7B8ADdA1f03c13fc0');
 
-// // Buradaki `get` contract içerisindeki fonksiyonun ismi
-denemelerContract.methods.birSeyler().call()
-	.then(result => console.log('Sonuç1: ' + result))
-	.catch(error => console.log('XXX An error occured! --> ' + error));
+// // // Buradaki `get` contract içerisindeki fonksiyonun ismi
+// denemelerContract.methods.birSeyler().call()
+// 	.then(result => console.log('Sonuç1: ' + result))
+// 	.catch(error => console.log('XXX An error occured! --> ' + error));
 /* TODO: <<< END >>>*/
 // --------------------------------------------------------------------------------
 
@@ -74,6 +70,55 @@ let pubKey = ethUtil.privateToPublic(Buffer.from(key.privateKey, 'hex')); // Gen
 let publicAddr = '0x' + ethUtil.publicToAddress(pubKey).toString('hex'); // Transform public key to public address
 
 console.log('Public Address: ', publicAddr);
+
+web3.eth.getBalance('0xC6d2b08205c885122392db41B39addea0C3cfA84', (error, result) => {
+	if (error) {
+		console.log('Error:', error);
+		return;
+	}
+	console.log('Before: ' +  web3.utils.fromWei(result.toString(), 'ether') + ' Ether');
+});
+
+web3.eth.getTransactionCount('0xC6d2b08205c885122392db41B39addea0C3cfA84', (err, txCount) => {
+		if (err) {
+			console.log('[CreateElection] An error occured:', err.message);
+			return;
+		}
+	// Build the transaction
+	const txObject = {
+		// nonce is basically that account's transaction count. It helps to prevent double-spending problem
+		nonce: web3.utils.toHex(txCount),
+		to: '0x71daC937376730247429e4AbD79c3ffd4EEAc78b', // Contract adress or public adress
+		gasLimit: web3.utils.toHex(1000000),
+		gasPrice: web3.utils.toHex(web3.utils.toWei('10', 'gwei')), // web3.utils.toHex(web3.eth.getGasPrice()),
+		value: web3.utils.toHex(web3.utils.toWei('0.50', 'ether')),
+	}
+
+	// Sign
+	const tx = new Tx(txObject); // TODO: Hard coded private key is not secure
+	let bufferPK = Buffer.from('1cadfe2cf958bb40f8a0fc17ed28f8cb1da7cf8a5f3786a81c6bab9f65d45edf',
+		'hex');
+	tx.sign(bufferPK);
+
+	const serializeTx = tx.serialize();
+	const raw = '0x' + serializeTx.toString('hex');
+
+	web3.eth.sendSignedTransaction(raw, (err, txHash) => {
+		if (err) {
+			console.log("SendSignedTransaction -> Error:", err.message)
+		} else {
+			console.log('txHash:', txHash);
+		}
+	});
+});
+
+web3.eth.getBalance('0xC6d2b08205c885122392db41B39addea0C3cfA84', (error, result) => {
+	if (error) {
+		console.log('Error:', error);
+		return;
+	}
+	console.log('After: ' +  web3.utils.fromWei(result.toString(), 'ether') + ' Ether');
+});
 
 // web3.eth.getBalance('0xe5ED3589Fa45bb03a0fcb727EdF799727C849D6c', (error, result) => {
 // 	if (error) {

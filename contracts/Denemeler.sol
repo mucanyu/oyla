@@ -1,7 +1,7 @@
 pragma solidity ^0.5.0;
 
 contract Denemeler {
-	uint8 constant MAX_ELECTION_COUNT = 10;
+	uint8 constant MAX_ELECTION_COUNT = 20;
 	uint electionCount = 0;
 
 	struct Election {
@@ -20,10 +20,11 @@ contract Denemeler {
 
 		mapping(address => bool) voters;
 		// `uint` represents candidate ID
-        mapping(uint => Candidate) cands;
+		mapping(uint => Candidate) cands;
 	}
 
 	struct Candidate {
+		uint 	id;
         bytes32	name;
         uint	voteCount;
     }
@@ -89,6 +90,15 @@ contract Denemeler {
 	function getNextElectionId() public view returns (uint) {
 		return electionCount;
 	}
+
+	function getCandidateName(uint _elecID, uint _candidateID) public view returns (bytes32,uint,uint,uint) {
+        return (elections[_elecID].cands[_candidateID].name,elections[_elecID].cands[_candidateID].voteCount,
+			elections[_elecID].numOfUsedVotes,elections[_elecID].cands[_candidateID].id);
+    }
+
+    function getCandidateCount(uint _elecID) public view returns (uint) {
+		return elections[_elecID].candidates.length;
+    }
 
 	// function getCandidateVoteCount(uint _elecID, bytes32 _candidateName) public view returns(uint) {
 	// 	return elections[_elecID].cands[_candidateName];

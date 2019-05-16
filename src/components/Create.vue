@@ -14,7 +14,7 @@
 						<div class="columns is-mobile">
 							<div class="column is-6">
 								<b-field label="TITLE">
-									<b-input value="Yerel Seçimler" pack="fas" icon="quote-left" type="text" maxlength="30"></b-input>
+									<b-input v-model="electionTitle" pack="fas" icon="quote-left" type="text" maxlength="30"></b-input>
 								</b-field>
 							</div>
 						</div>
@@ -140,6 +140,7 @@
 
 	import getWeb3 from '../utils/getWeb3'
 	import DenemelerContract from '../../build/contracts/Denemeler.json'
+	import { setInterval } from 'timers';
 	// import VueSidebarMenu from 'vue-sidebar-menu'
 
 	export default {
@@ -151,10 +152,10 @@
 		data() {
 			return {
 				candidates: [{
-					id: 1,
+					id: 0,
 					name: ''
 				}, {
-					id: 2,
+					id: 1,
 					name: ''
 				}],
 				menu: [{
@@ -212,16 +213,18 @@
 				contractInstance: null,
 				oylaWeb3: null,
 				voterCount: 2,
+				electionTitle: '',
 				voters: [],
 				candList: [],
 				privKeys: [],
 				pubKeys: [],
+				electionId: '',
 			}
 		},
 		methods: {
 			handleCandidates() {
 				this.candidates.map((cand, index) => {
-					cand.id = index + 1;
+					cand.id = index;
 				})
 			},
 			addCandidate() {
@@ -245,9 +248,6 @@
 			getYesterdayTime() {
 				return new Date(Date.now() - 86400000);
 			},
-			generateRandomString(length) {
-				return Math.round((Math.pow(36, length + 1) - Math.random() * Math.pow(36, length))).toString(36).slice(1);
-			},
 			pushNewElectionRoute(path) {
 				console.log("Path:" + path);
 				this.$router.push({
@@ -256,7 +256,7 @@
 				});
 			},
 			instantiateContract() {
-				this.contractInstance = new this.oylaWeb3.eth.Contract(this.contractABI, '0xabcf4325a6DB0da91b5AB0A008002C4868eD2541');
+				this.contractInstance = new this.oylaWeb3.eth.Contract(this.contractABI, '0x2DF7e7778b9f6260eac1755aF81f06c314357A07');
 			},
 			handleCandidateNames() {
 				for (let i = 0; i < this.candidates.length; i++) {
@@ -288,10 +288,8 @@
 
 					// console.log(`[${i}] Private Key: ` + privKey);
 
-					let pubKey = ethUtil.privateToPublic(Buffer.from(key.privateKey,
-					'hex')); // Generate public key from private key
-					let publicAddr = '0x' + ethUtil.publicToAddress(pubKey).toString(
-					'hex'); // Transform public key to public address
+					let pubKey = ethUtil.privateToPublic(Buffer.from(key.privateKey, 'hex')); // Generate public key from private key
+					let publicAddr = '0x' + ethUtil.publicToAddress(pubKey).toString('hex'); // Transform public key to public address
 					this.pubKeys.push(publicAddr);
 
 					// console.log(`[${i}] Public Address: ` + publicAddr);
@@ -301,17 +299,12 @@
 			},
 			generateQRFile() {
 				let QR_arr = [];
-				let _electionId;
-
-				this.contractInstance.methods.getNextElectionId().call()
-					.then(result => console.log('Next Election ID --->>>', Number(result.toString())))
-					.catch(error => console.log('An error occured while getting Election ID:', error));
 
 				for (let i = 0; i < this.voterCount; i++) {
 					let data = {
 						address: this.privKeys[i],
+						electionId: this.electionId,
 						candidates: this.candidates,
-						electionId: _electionId,
 					}
 
 					QR_arr.push(qr.imageSync(JSON.stringify(data).toString('base64'), {
@@ -349,7 +342,7 @@
 
 				// Then generate public and private key addresses for each voter.
 				this.generateKeyPairs();
-
+				let tempNonce;
 				this.$swal({
 						title: 'Successfully created an election',
 						icon: "success",
@@ -357,76 +350,107 @@
 					})
 					.then((swal) => {
 						getWeb3.then(data => {
-							this.oylaWeb3 = data;
-						})
-						.then(() => {
-							this.handleCandidateNames();
-							this.instantiateContract();
-						})
-						.then(() => {
-							this.generateQRFile();
-
-							this.oylaWeb3.eth.getTransactionCount('0xC6d2b08205c885122392db41B39addea0C3cfA84', (err,
-							txCount) => {
-								if (err) {
-									console.log('[CreateElection] An error occured:', err.message);
-									return;
-								}
-
-								// Build the transaction
-								const txObject = {
-									// nonce is basically that account's transaction count. It helps to prevent double-spending problem
-									nonce: this.oylaWeb3.utils.toHex(txCount),
-									gasLimit: this.oylaWeb3.utils.toHex(1000000),
-									gasPrice: this.oylaWeb3.utils.toHex(this.oylaWeb3.utils.toWei('10',
-									'gwei')), // web3.utils.toHex(web3.eth.getGasPrice()),
-									to: '0xabcf4325a6DB0da91b5AB0A008002C4868eD2541', // Contract adress or public adress
-									data: this.contractInstance.methods.createElection(
-										"Yerel Seçimler", this.candList, ["0xabcf4325a6DB0da91b5AB0A008002C4868eD2541"], this
-										.voterCount, this.startingUnixTime, this.endingUnixTime
-									).encodeABI(),
-								}
-
-								// Sign
-								const tx = new Tx(txObject); // TODO: Hard coded private key is not secure
-								let bufferPK = Buffer.from('1cadfe2cf958bb40f8a0fc17ed28f8cb1da7cf8a5f3786a81c6bab9f65d45edf',
-									'hex');
-								tx.sign(bufferPK);
-
-								const serializeTx = tx.serialize();
-								const raw = '0x' + serializeTx.toString('hex');
-
-								this.oylaWeb3.eth.sendSignedTransaction(raw, (err, txHash) => {
-									if (err) {
-										console.log("SendSignedTransaction -> Error:", err.message)
-									} else {
-										console.log('txHash:', txHash);
-									}
-								});
-							});
-
-							this.oylaWeb3.eth.getTransactionCount('0xC6d2b08205c885122392db41B39addea0C3cfA84', (err, txCount) => {	
-								if (err) {
-									console.log('[SendEtherToAccs] An error occured:', err.message);
-									return;
-								}
-
-								for (let i = 0; i < voters.length; i++) {
-
-									this.oylaWeb3.sendTransaction({
-											nonce: txCount,
-										}
-									);
-								}							
+								this.oylaWeb3 = data;
 							})
-						})						
-						.catch(error => {
-							console.log('getWeb3 call error:', error);
-						});
+							.then(() => {
+								this.handleCandidateNames();
+								this.instantiateContract();
+							})
+							.then(() => {
+								console.log('Starting unix time:', this.startingUnixTime);
+								console.log('Ending unix time:', this.endingUnixTime);
+								this.oylaWeb3.eth.getTransactionCount('0xC6d2b08205c885122392db41B39addea0C3cfA84', (err,
+									txCount) => {
+									if (err) {
+										console.log('[CreateElection] An error occured:', err.message);
+										return;
+									}
+										tempNonce = txCount;
 
-						// Redirect user
-						// this.$router.push({name: 'home'});
-						// this.pushNewElectionRoute(this.generateRandomString(10));
+									// Build the transaction
+									const txObject = {
+										// nonce is basically that account's transaction count. It helps to prevent double-spending problem
+										nonce: this.oylaWeb3.utils.toHex(txCount),
+										gasLimit: this.oylaWeb3.utils.toHex(1000000),
+										gasPrice: this.oylaWeb3.utils.toHex(this.oylaWeb3.utils.toWei('10', 'gwei')), // web3.utils.toHex(web3.eth.getGasPrice()),
+										to: '0x2DF7e7778b9f6260eac1755aF81f06c314357A07', // Contract adress or public adress
+										data: this.contractInstance.methods.createElection(
+											this.electionTitle, this.candList, this.voters, this.voterCount, this.startingUnixTime, this.endingUnixTime
+										).encodeABI(),
+									}
+
+									// Sign
+									const tx = new Tx(txObject); // FIXME: Hard coded private key is not secure
+									let bufferPK = Buffer.from('1cadfe2cf958bb40f8a0fc17ed28f8cb1da7cf8a5f3786a81c6bab9f65d45edf', 'hex');
+									tx.sign(bufferPK);
+
+									const serializeTx = tx.serialize();
+									const raw = '0x' + serializeTx.toString('hex');
+
+									this.oylaWeb3.eth.sendSignedTransaction(raw, (err, txHash) => {
+										if (err) {
+											console.log("SendSignedTransaction -> Error:", err.message)
+										} else {
+											console.log('txHash:', txHash);
+											console.log('contractInstance:', this.contractInstance);
+											this.contractInstance.methods.getNextElectionId().call()
+											.then(result => {
+												this.electionId = Number(result.toString() - 1);
+												console.log('Election ID --->>>', this.electionId );
+											})
+											.then(() => {
+												this.generateQRFile();							
+											})
+											.catch(error => console.log('An error occured while getting Election ID:', error));
+										}
+									});
+								});								
+							})
+							.then(() => {				
+
+								// let alacaklilar = ['0x0740f3E914A877ABccF871Ce3d57D3Dad936cF6D', '0x32223dBAbb761cAbD033C2370560d078693C44A3']
+
+								// FIXME: Uncomment below here!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
+								// this.oylaWeb3.eth.getTransactionCount('0x64B15665779A8D85D79ac81ec71E4985D61dc606', (err, txCount) => {
+								// 	if (err) {
+								// 		console.log('[SendEtherToVoters] An error occured:', err.message);
+								// 		return;
+								// 	}
+
+								// 	for (let i = 0; i < this.voters.length; i++) {
+								// 		// Build the transaction
+								// 		const txObject = {
+								// 			// nonce is basically that account's transaction count. It helps to prevent double-spending problem
+								// 			nonce: 		this.oylaWeb3.utils.toHex(++tempNonce), 
+								// 			// FIXME: We have nonce conflicts when multiple transactions are broadcasted before confirmation of the other.
+
+								// 			to: 			this.voters[i], // Contract adress or public adress
+								// 			gasLimit: this.oylaWeb3.utils.toHex(1000000),
+								// 			gasPrice: this.oylaWeb3.utils.toHex(this.oylaWeb3.utils.toWei('10','gwei')), // web3.utils.toHex(web3.eth.getGasPrice()),
+								// 			value:		this.oylaWeb3.utils.toHex(this.oylaWeb3.utils.toWei('0.01', 'ether')),
+								// 		}
+
+								// 		// Sign
+								// 		const tx = new Tx(txObject); // FIXME: Hard coded private key is not secure
+								// 		let bufferPK = Buffer.from('979AE75C5C10F836E001CAFB83EA306C3B758308FD140EAE45439606F8DB3621', 'hex');
+								// 		tx.sign(bufferPK);
+
+								// 		const serializeTx = tx.serialize();
+								// 		const raw = '0x' + serializeTx.toString('hex');
+
+								// 		this.oylaWeb3.eth.sendSignedTransaction(raw, (err, txHash) => {
+								// 			if (err) {
+								// 				console.log("SendSignedTransaction -> Error:", err.message)
+								// 			} else {
+								// 				console.log('txHash:', txHash);
+								// 			}
+								// 		});
+								// 	}
+								// });
+							})
+							.catch(error => {
+								console.log('getWeb3 call error:', error);
+							});
 					})
 					.catch(err => {
 						this.$swal({
@@ -435,7 +459,7 @@
 							icon: "error",
 						});
 					});
-			},
+			},			
 		},
 		computed: {
 			getMinTimeForStartingTime: function () {
@@ -447,7 +471,7 @@
 			},
 			getMinTimeForEndingTime: function () {
 				return (moment(this.startingDate).isSame(this.endingDate, 'day')) ? this.startingTime : null;
-			}
+			},
 		}
 	}
 </script>

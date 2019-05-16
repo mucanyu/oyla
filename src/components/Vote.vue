@@ -18,11 +18,11 @@
 
 									<qrcode-stream :camera="camera" @decode="onDecode" @init="onInit">
 										<div v-if="validationSuccess" class="validation-success">
-											This is a URL
+											Voting transaction was successful.
 										</div>
 
 										<div v-if="validationFailure" class="validation-failure">
-											This is NOT a URL!
+											Oops! An error occured.
 										</div>
 
 										<div v-if="validationPending" class="validation-pending">
@@ -31,6 +31,17 @@
 									</qrcode-stream>
 
 									<p class="decode-result">Last result: <b>{{ result }}</b></p>
+									<br>
+									<b-field label="Candidates">
+										<b-select placeholder="Select a candidate" icon="user" icon-pack="fas" v-model="selectedCandidate"
+											expanded>
+											<option v-for="cand in candidates" :key="cand.id" :value="cand">{{ cand.name }}</option>
+										</b-select>
+									</b-field>
+									<b-button type="is-primary" v-on:click="vote()">
+										<b-icon pack="fas" icon="person-booth" size="is-small" />
+										<span>Vote</span>
+									</b-button>
 								</div>
 							</div>
 						</article>
@@ -48,11 +59,14 @@
 		QrcodeDropZone,
 		QrcodeCapture
 	} from 'vue-qrcode-reader'
-	import { SidebarMenu } from 'vue-sidebar-menu'
+	import {
+		SidebarMenu
+	} from 'vue-sidebar-menu'
 	import 'vue-sidebar-menu/dist/vue-sidebar-menu.css'
 
 	import Tx from 'ethereumjs-tx'
 	import getWeb3 from '../utils/getWeb3'
+	import * as ethUtil from 'ethereumjs-util'
 	import DenemelerContract from '../../build/contracts/Denemeler.json'
 
 	export default {
@@ -113,6 +127,11 @@
 				contractInstance: null,
 				contractABI: DenemelerContract.abi,
 				oylaWeb3: null,
+				privAddr: '',
+				publicAddress: '',
+				candidates: [],
+				selectedCandidate: null,
+				electionId: null,
 			}
 		},
 		methods: {
@@ -129,29 +148,57 @@
 			async onDecode(content) {
 				this.result = content;
 				this.turnCameraOff();
-				console.log('Content type:', typeof content);
-				// pretend it's taking really long
 
-				await function() {
-					console.log('Test');
-				}
+				console.log('Content içeriği:', content);
+
+				let qrContent = JSON.parse(content)
+
+				this.privToPublicAddr(qrContent.address);
+				this.electionId = qrContent.electionId;
+				this.candidates = qrContent.candidates;
+				console.log('Candidates:', this.candidates);
 
 				await this.timeout(2200);
 				// this.isValid = content.startsWith('http');
 
-				// TODO: Send transaction with given private key.
+				this.instantiateContract();
+
+				this.$dialog.alert({
+					title: 'Scan was succesful.',
+					message: 'Please <b>select</b> a candidate to vote.',
+					type: 'is-success',
+					hasIcon: true,
+					icon: 'check',
+					iconPack: 'fas',
+					onConfirm: () => {
+						// this.isQRHidden = 'none';
+						// this.isVotingHidden = '';
+					} //this.$toast.open('Your voting has been recorded to the blockchain.')
+				});
 
 				// some more delay, so users have time to read the message
 				await this.timeout(2000);
 
-				this.$dialog.confirm({
-					title: 'Deleting account',
-					message: 'Are you sure you want to <b>delete</b> your account? This action cannot be undone.',
-					confirmText: 'Delete Account',
-					type: 'is-info',
-					hasIcon: true,
-					onConfirm: () => this.$toast.open('Account deleted!')
-				});
+				if (this.isValid) {
+					this.$dialog.alert({
+						title: 'Successful.',
+						message: 'Voting transaction was <b>successful</b>.',
+						type: 'is-success',
+						hasIcon: true,
+						icon: 'check',
+						iconPack: 'fas',
+						onConfirm: () => this.$toast.open('Your voting has been recorded to the blockchain.')
+					});
+				} else {
+					this.$dialog.alert({
+						title: 'Error',
+						message: 'Oops! Please scan eligible QR or try again.',
+						type: 'is-danger',
+						hasIcon: true,
+						icon: 'times-circle',
+						iconPack: 'fa'
+					});
+				}
 
 				this.turnCameraOn();
 			},
@@ -171,8 +218,53 @@
 			},
 
 			instantiateContract() {
-				this.contractInstance = new this.oylaWeb3.eth.Contract(this.contractABI, '0xabcf4325a6DB0da91b5AB0A008002C4868eD2541');
-			}
+				this.contractInstance = new this.oylaWeb3.eth.Contract(this.contractABI, '0x2DF7e7778b9f6260eac1755aF81f06c314357A07');
+			},
+
+			privToPublicAddr(addr) {
+				let pubKey = ethUtil.privateToPublic(Buffer.from(addr, 'hex'));
+				this.publicAddress = '0x' + ethUtil.publicToAddress(pubKey).toString('hex');
+			},
+
+			vote() {
+				console.log('INFO BEFORE TX --> elecID: ' + this.electionId + ' | selctdCandName: ' + this.selectedCandidate.name + ' | PubAddr: ' + this.publicAddress)
+
+				this.oylaWeb3.eth.getTransactionCount('0xC6d2b08205c885122392db41B39addea0C3cfA84', (err, txCount) => {
+					if (err) {
+						console.log('[VoteInAnElection] An error occured:', err.message);
+						this.isValid = false;
+						return;
+					}
+
+					// Build the transaction
+					const txObject = {
+						// nonce is basically that account's transaction count. It helps to prevent double-spending problem
+						nonce: this.oylaWeb3.utils.toHex(txCount),
+						gasLimit: this.oylaWeb3.utils.toHex(100000),
+						gasPrice: this.oylaWeb3.utils.toHex(this.oylaWeb3.utils.toWei('21', 'gwei')), // web3.utils.toHex(web3.eth.getGasPrice()),
+						to: '0x2DF7e7778b9f6260eac1755aF81f06c314357A07', // Contract adress or public adress
+						data: this.contractInstance.methods.vote(this.electionId, this.selectedCandidate.id, this.publicAddress).encodeABI(),
+					}
+					
+					// Sign
+					const tx = new Tx(txObject); // FIXME: Hard coded private key is not secure
+					let bufferPK = Buffer.from('1cadfe2cf958bb40f8a0fc17ed28f8cb1da7cf8a5f3786a81c6bab9f65d45edf', 'hex');
+					tx.sign(bufferPK);
+
+					const serializeTx = tx.serialize();
+					const raw = '0x' + serializeTx.toString('hex');
+
+					this.oylaWeb3.eth.sendSignedTransaction(raw, (err, txHash) => {
+						if (err) {
+							console.log("SendSignedTransaction -> Error:", err.message)
+							this.isValid = false;
+						} else {
+							console.log('txHash:', txHash);
+							this.isValid = true;
+						}
+					});
+				});
+			},
 		},
 		computed: {
 			validationPending() {
@@ -190,8 +282,43 @@
 		created() {
 			getWeb3.then(data => {
 				console.log('Web3 bağlandı.')
-				this.oylaWeb3 = data;
-			});
+
+				this.oylaWeb3 = data
+				var count = 0
+				var sayac = 0
+				var j = 0
+				var isim = this.deneme
+				let sampleContract = this.oylaWeb3.eth.Contract(this.contractABI,
+					'0xbB355070aa0e03eeEE497382d174FdaE84B18A13')
+				sampleContract.methods.getCandidateCount(0).call()
+					.then(result => {
+						var votes = []
+						for (var i = 0; i < result; i++) {
+							console.log("ilk" + i)
+
+							sampleContract.methods.getCandidateName(0, i).call()
+								.then(result => {
+
+									console.log(result[1] + "=" + result[0])
+									var element = {};
+									element.first_name = result[0];
+									console.log('isim -->', element.first_name);
+
+									element.date = '80'
+									element.gender = 'male'
+									element.oy = result[1]
+
+									this.data.push(element)
+
+								})
+
+								.catch(error => console.log('An error occured! --> ' + error));
+
+						} //for kapanış
+					})
+					.catch(error => console.log('An error occured! --> ' + error));
+
+			})
 		}
 	}
 </script>
