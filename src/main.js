@@ -6,7 +6,6 @@ import VueRouter from 'vue-router'
 import Buefy from "buefy";
 import "@fortawesome/fontawesome-free/css/all.css";
 import "@fortawesome/fontawesome-free/css/fontawesome.css";
-// import swal from 'sweetalert' // https://github.com/t4t5/sweetalert
 import VueSwal from 'vue-swal'
 
 import 'buefy/dist/buefy.css'
@@ -16,6 +15,7 @@ config.defaultIconPack = 'fas';
 
 import Welcome from './components/Welcome'
 import Create from './components/Create'
+import Vote from './components/Vote'
 import { format } from 'date-fns'
 
 Vue.config.productionTip = false
@@ -34,8 +34,9 @@ Vue.use(Buefy, {
 
 //define routes
 const routes = [
-  { path: '/', component: Welcome },
-  { path: '/create', component: Create}
+  { path: '/', component: Welcome, name: "home" },
+  { path: '/create', component: Create, name: "create" },
+  { path: '/vote', component: Vote, name: "vote" },
 ]
 
 const router = new VueRouter({
