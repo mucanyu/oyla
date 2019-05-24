@@ -170,33 +170,16 @@
 						href: '/create',
 						title: 'Create an Election',
 						icon: 'fas fa-plus-circle',
-						// disabled: true
-						// class:''
-						// attributes: {}
-						/*
-						badge: {
-						    text: 'new',
-						    // class:''
-						    // attributes: {}
-						}
-						*/
+					},
+					{ // item
+						href: '/vote',
+						title: 'Vote',
+						icon: 'fas fa-person-booth',
 					},
 					{ // item with child
-						href: '/create',
+						href: '/result',
 						title: 'Results',
 						icon: 'fas fa-chart-pie',
-						child: [{
-								href: '/charts/sublink',
-								title: 'Çankaya',
-							},
-							{
-								href: '/charts/sublink',
-								title: 'Kadıköy',
-							}, {
-								href: '/charts/sublink',
-								title: 'Beşiktaş',
-							}
-						]
 					},
 				],
 				startingDate: null, // Helps to disable dates before current day.
@@ -256,7 +239,7 @@
 				});
 			},
 			instantiateContract() {
-				this.contractInstance = new this.oylaWeb3.eth.Contract(this.contractABI, '0x2DF7e7778b9f6260eac1755aF81f06c314357A07');
+				this.contractInstance = new this.oylaWeb3.eth.Contract(this.contractABI, '0x45B6552eB5bD7C93609B814ad0Ff27081c1500B5');
 			},
 			handleCandidateNames() {
 				for (let i = 0; i < this.candidates.length; i++) {
@@ -359,7 +342,7 @@
 							.then(() => {
 								console.log('Starting unix time:', this.startingUnixTime);
 								console.log('Ending unix time:', this.endingUnixTime);
-								this.oylaWeb3.eth.getTransactionCount('0xC6d2b08205c885122392db41B39addea0C3cfA84', (err,
+								this.oylaWeb3.eth.getTransactionCount('0x64B15665779A8D85D79ac81ec71E4985D61dc606', (err,
 									txCount) => {
 									if (err) {
 										console.log('[CreateElection] An error occured:', err.message);
@@ -373,7 +356,7 @@
 										nonce: this.oylaWeb3.utils.toHex(txCount),
 										gasLimit: this.oylaWeb3.utils.toHex(1000000),
 										gasPrice: this.oylaWeb3.utils.toHex(this.oylaWeb3.utils.toWei('10', 'gwei')), // web3.utils.toHex(web3.eth.getGasPrice()),
-										to: '0x2DF7e7778b9f6260eac1755aF81f06c314357A07', // Contract adress or public adress
+										to: '0x45B6552eB5bD7C93609B814ad0Ff27081c1500B5', // Contract adress or public adress
 										data: this.contractInstance.methods.createElection(
 											this.electionTitle, this.candList, this.voters, this.voterCount, this.startingUnixTime, this.endingUnixTime
 										).encodeABI(),
@@ -381,7 +364,7 @@
 
 									// Sign
 									const tx = new Tx(txObject); // FIXME: Hard coded private key is not secure
-									let bufferPK = Buffer.from('1cadfe2cf958bb40f8a0fc17ed28f8cb1da7cf8a5f3786a81c6bab9f65d45edf', 'hex');
+									let bufferPK = Buffer.from('<INSERT PRIVATE KEY HERE>', 'hex');
 									tx.sign(bufferPK);
 
 									const serializeTx = tx.serialize();
@@ -392,10 +375,9 @@
 											console.log("SendSignedTransaction -> Error:", err.message)
 										} else {
 											console.log('txHash:', txHash);
-											console.log('contractInstance:', this.contractInstance);
 											this.contractInstance.methods.getNextElectionId().call()
 											.then(result => {
-												this.electionId = Number(result.toString() - 1);
+												this.electionId = Number(result.toString());
 												console.log('Election ID --->>>', this.electionId );
 											})
 											.then(() => {
@@ -411,42 +393,42 @@
 								// let alacaklilar = ['0x0740f3E914A877ABccF871Ce3d57D3Dad936cF6D', '0x32223dBAbb761cAbD033C2370560d078693C44A3']
 
 								// FIXME: Uncomment below here!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
-								// this.oylaWeb3.eth.getTransactionCount('0x64B15665779A8D85D79ac81ec71E4985D61dc606', (err, txCount) => {
-								// 	if (err) {
-								// 		console.log('[SendEtherToVoters] An error occured:', err.message);
-								// 		return;
-								// 	}
+								this.oylaWeb3.eth.getTransactionCount('0x64B15665779A8D85D79ac81ec71E4985D61dc606', (err, txCount) => {
+									if (err) {
+										console.log('[SendEtherToVoters] An error occured:', err.message);
+										return;
+									}
+									console.log('Voter length:', this.voters.length);
+									for (let i = 0; i < this.voters.length; i++) {
+										// Build the transaction
+										const txObject = {
+											// nonce is basically that account's transaction count. It helps to prevent double-spending problem
+											nonce: 		this.oylaWeb3.utils.toHex(++tempNonce), 
+											// FIXME: We have nonce conflicts when multiple transactions are broadcasted before confirmation of the other.
 
-								// 	for (let i = 0; i < this.voters.length; i++) {
-								// 		// Build the transaction
-								// 		const txObject = {
-								// 			// nonce is basically that account's transaction count. It helps to prevent double-spending problem
-								// 			nonce: 		this.oylaWeb3.utils.toHex(++tempNonce), 
-								// 			// FIXME: We have nonce conflicts when multiple transactions are broadcasted before confirmation of the other.
+											to: 			this.voters[i], // Contract adress or public adress
+											gasLimit: this.oylaWeb3.utils.toHex(1000000),
+											gasPrice: this.oylaWeb3.utils.toHex(this.oylaWeb3.utils.toWei('10','gwei')), // web3.utils.toHex(web3.eth.getGasPrice()),
+											value:		this.oylaWeb3.utils.toHex(this.oylaWeb3.utils.toWei('0.01', 'ether')),
+										}
 
-								// 			to: 			this.voters[i], // Contract adress or public adress
-								// 			gasLimit: this.oylaWeb3.utils.toHex(1000000),
-								// 			gasPrice: this.oylaWeb3.utils.toHex(this.oylaWeb3.utils.toWei('10','gwei')), // web3.utils.toHex(web3.eth.getGasPrice()),
-								// 			value:		this.oylaWeb3.utils.toHex(this.oylaWeb3.utils.toWei('0.01', 'ether')),
-								// 		}
+										// Sign
+										const tx = new Tx(txObject); // FIXME: Hard coded private key is not secure
+										let bufferPK = Buffer.from('<INSERT PRIVATE KEY HERE>', 'hex');
+										tx.sign(bufferPK);
 
-								// 		// Sign
-								// 		const tx = new Tx(txObject); // FIXME: Hard coded private key is not secure
-								// 		let bufferPK = Buffer.from('979AE75C5C10F836E001CAFB83EA306C3B758308FD140EAE45439606F8DB3621', 'hex');
-								// 		tx.sign(bufferPK);
+										const serializeTx = tx.serialize();
+										const raw = '0x' + serializeTx.toString('hex');
 
-								// 		const serializeTx = tx.serialize();
-								// 		const raw = '0x' + serializeTx.toString('hex');
-
-								// 		this.oylaWeb3.eth.sendSignedTransaction(raw, (err, txHash) => {
-								// 			if (err) {
-								// 				console.log("SendSignedTransaction -> Error:", err.message)
-								// 			} else {
-								// 				console.log('txHash:', txHash);
-								// 			}
-								// 		});
-								// 	}
-								// });
+										this.oylaWeb3.eth.sendSignedTransaction(raw, (err, txHash) => {
+											if (err) {
+												console.log("SendSignedTransaction -> Error:", err.message)
+											} else {
+												console.log('txHash:', txHash);
+											}
+										});
+									}
+								});
 							})
 							.catch(error => {
 								console.log('getWeb3 call error:', error);

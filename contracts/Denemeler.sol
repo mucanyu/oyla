@@ -92,8 +92,8 @@ contract Denemeler {
 	}
 
 	function getCandidateName(uint _elecID, uint _candidateID) public view returns (bytes32,uint,uint,uint) {
-        return (elections[_elecID].cands[_candidateID].name,elections[_elecID].cands[_candidateID].voteCount,
-			elections[_elecID].numOfUsedVotes,elections[_elecID].cands[_candidateID].id);
+        return (elections[_elecID].cands[_candidateID].name, elections[_elecID].cands[_candidateID].voteCount,
+			elections[_elecID].numOfUsedVotes, elections[_elecID].cands[_candidateID].id);
     }
 
     function getCandidateCount(uint _elecID) public view returns (uint) {

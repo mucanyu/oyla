@@ -1,7 +1,3 @@
-// Ropsten Test Network Account Details [Current Balance: ~1 ETH]
-// Public  Key: 0x64B15665779A8D85D79ac81ec71E4985D61dc606
-// Private Key: 979AE75C5C10F836E001CAFB83EA306C3B758308FD140EAE45439606F8DB3621
-
 const Web3 = require('web3');
 const Tx = require('ethereumjs-tx')
 const DenemelerContract = require('../build/contracts/Denemeler.json');
@@ -45,7 +41,7 @@ web3.eth.getTransactionCount('0x64B15665779A8D85D79ac81ec71E4985D61dc606', (err,
     }
     // Sign
     const tx = new Tx(txObject);
-    let bufferPK = Buffer.from('979AE75C5C10F836E001CAFB83EA306C3B758308FD140EAE45439606F8DB3621', 'hex');
+    let bufferPK = Buffer.from('<INSERT PRIVATE KEY HERE>', 'hex');
     tx.sign(bufferPK);
 
     const serializeTx = tx.serialize();

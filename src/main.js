@@ -15,6 +15,7 @@ config.defaultIconPack = 'fas';
 
 import Welcome from './components/Welcome'
 import Create from './components/Create'
+import Result from './components/Result'
 import Vote from './components/Vote'
 import { format } from 'date-fns'
 
@@ -37,6 +38,7 @@ const routes = [
   { path: '/', component: Welcome, name: "home" },
   { path: '/create', component: Create, name: "create" },
   { path: '/vote', component: Vote, name: "vote" },
+  { path: '/result', component: Result, name: "result" },
 ]
 
 const router = new VueRouter({

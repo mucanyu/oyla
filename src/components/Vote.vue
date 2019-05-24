@@ -30,7 +30,7 @@
 										</div>
 									</qrcode-stream>
 
-									<p class="decode-result">Last result: <b>{{ result }}</b></p>
+									<!-- <p class="decode-result">Last result: <b>{{ result }}</b></p> -->
 									<br>
 									<b-field label="Candidates">
 										<b-select placeholder="Select a candidate" icon="user" icon-pack="fas" v-model="selectedCandidate"
@@ -90,38 +90,21 @@
 						// visibleOnCollapse: true
 						// class:''
 						// attributes: {}
-					},
+					},					
 					{ // item
 						href: '/create',
 						title: 'Create an Election',
-						icon: 'fas fa-plus-circle',
-						// disabled: true
-						// class:''
-						// attributes: {}
-						/*
-						badge: {
-						    text: 'new',
-						    // class:''
-						    // attributes: {}
-						}
-						*/
+						icon: 'fas fa-plus-circle',						
 					},
-					{ // item with child
-						href: '/create',
+					{ // item
+						href: '/vote',
+						title: 'Vote',
+						icon: 'fas fa-person-booth',
+					},
+						{ // item with child
+						href: '/result',
 						title: 'Results',
 						icon: 'fas fa-chart-pie',
-						child: [{
-								href: '/charts/sublink',
-								title: 'Çankaya',
-							},
-							{
-								href: '/charts/sublink',
-								title: 'Kadıköy',
-							}, {
-								href: '/charts/sublink',
-								title: 'Beşiktaş',
-							}
-						]
 					},
 				],
 				contractInstance: null,
@@ -153,7 +136,8 @@
 
 				let qrContent = JSON.parse(content)
 
-				this.privToPublicAddr(qrContent.address);
+				this.privAddr = qrContent.address;
+				this.privToPublicAddr(this.privAddr);
 				this.electionId = qrContent.electionId;
 				this.candidates = qrContent.candidates;
 				console.log('Candidates:', this.candidates);
@@ -218,10 +202,11 @@
 			},
 
 			instantiateContract() {
-				this.contractInstance = new this.oylaWeb3.eth.Contract(this.contractABI, '0x2DF7e7778b9f6260eac1755aF81f06c314357A07');
+				this.contractInstance = new this.oylaWeb3.eth.Contract(this.contractABI, '0x45B6552eB5bD7C93609B814ad0Ff27081c1500B5');
 			},
 
 			privToPublicAddr(addr) {
+				console.log('privToPublicAddr parameter:', addr);
 				let pubKey = ethUtil.privateToPublic(Buffer.from(addr, 'hex'));
 				this.publicAddress = '0x' + ethUtil.publicToAddress(pubKey).toString('hex');
 			},
@@ -229,7 +214,7 @@
 			vote() {
 				console.log('INFO BEFORE TX --> elecID: ' + this.electionId + ' | selctdCandName: ' + this.selectedCandidate.name + ' | PubAddr: ' + this.publicAddress)
 
-				this.oylaWeb3.eth.getTransactionCount('0xC6d2b08205c885122392db41B39addea0C3cfA84', (err, txCount) => {
+				this.oylaWeb3.eth.getTransactionCount(this.publicAddress, (err, txCount) => {
 					if (err) {
 						console.log('[VoteInAnElection] An error occured:', err.message);
 						this.isValid = false;
@@ -242,13 +227,14 @@
 						nonce: this.oylaWeb3.utils.toHex(txCount),
 						gasLimit: this.oylaWeb3.utils.toHex(100000),
 						gasPrice: this.oylaWeb3.utils.toHex(this.oylaWeb3.utils.toWei('21', 'gwei')), // web3.utils.toHex(web3.eth.getGasPrice()),
-						to: '0x2DF7e7778b9f6260eac1755aF81f06c314357A07', // Contract adress or public adress
+						to: '0x45B6552eB5bD7C93609B814ad0Ff27081c1500B5', // Contract adress or public adress
 						data: this.contractInstance.methods.vote(this.electionId, this.selectedCandidate.id, this.publicAddress).encodeABI(),
 					}
 					
+					console.log('Before signing PRIVKEY:', this.privAddr);
 					// Sign
 					const tx = new Tx(txObject); // FIXME: Hard coded private key is not secure
-					let bufferPK = Buffer.from('1cadfe2cf958bb40f8a0fc17ed28f8cb1da7cf8a5f3786a81c6bab9f65d45edf', 'hex');
+					let bufferPK = Buffer.from(this.privAddr, 'hex');
 					tx.sign(bufferPK);
 
 					const serializeTx = tx.serialize();
@@ -281,44 +267,9 @@
 		},
 		created() {
 			getWeb3.then(data => {
-				console.log('Web3 bağlandı.')
-
-				this.oylaWeb3 = data
-				var count = 0
-				var sayac = 0
-				var j = 0
-				var isim = this.deneme
-				let sampleContract = this.oylaWeb3.eth.Contract(this.contractABI,
-					'0xbB355070aa0e03eeEE497382d174FdaE84B18A13')
-				sampleContract.methods.getCandidateCount(0).call()
-					.then(result => {
-						var votes = []
-						for (var i = 0; i < result; i++) {
-							console.log("ilk" + i)
-
-							sampleContract.methods.getCandidateName(0, i).call()
-								.then(result => {
-
-									console.log(result[1] + "=" + result[0])
-									var element = {};
-									element.first_name = result[0];
-									console.log('isim -->', element.first_name);
-
-									element.date = '80'
-									element.gender = 'male'
-									element.oy = result[1]
-
-									this.data.push(element)
-
-								})
-
-								.catch(error => console.log('An error occured! --> ' + error));
-
-						} //for kapanış
-					})
-					.catch(error => console.log('An error occured! --> ' + error));
-
-			})
+				console.log('Web3 bağlandı.');
+				this.oylaWeb3 = data;
+			});
 		}
 	}
 </script>

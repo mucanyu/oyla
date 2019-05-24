@@ -9,8 +9,8 @@ let getWeb3 = new Promise(function (resolve, reject) {
             // var web3 = new Web3(web3js.currentProvider);
             reject('You should disable Metamask/Mist');
         } else {
-            // web3 = new Web3(new Web3.providers.HttpProvider("https://ropsten.infura.io/v3/1d6a7f1c8bed4cec8f6f05d0f83f481e"));
-            web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"));
+            web3 = new Web3(new Web3.providers.HttpProvider("https://ropsten.infura.io/v3/1d6a7f1c8bed4cec8f6f05d0f83f481e"));
+            // web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"));
             resolve(web3);
         }
     });
